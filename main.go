@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"github.com/Hdeee1/go-ecommerce/middleware"
+	"github.com/Hdee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/routes"
 	"github.com/gin-gonic/gin"
 )
@@ -15,7 +16,7 @@ func main() {
 		port = "8080"
 	}
 
-	app := controllers.NewApplication(database.ProductData(database.Client, "Products"), database.UserData(database.Client, "Users"))
+	app := controllers.NewApplication(database.ProductData(database., "Products"), database.UserData(database.Client, "Users"))
 
 	router := gin.New()
 	router.Use(gin.Logger())
