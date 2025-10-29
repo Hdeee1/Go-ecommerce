@@ -5,8 +5,8 @@ import (
 	"os"
 
 	"github.com/Hdeee1/go-ecommerce/controllers"
-	"github.com/Hdeee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/middleware"
+	"github.com/Hdeee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/routes"
 	"github.com/gin-gonic/gin"
 )
@@ -17,11 +17,13 @@ func main() {
 		port = "8080"
 	}
 
+	// connect to database
 	database.ConnectDB()
 
+	// initialize application with db connections
 	app := controllers.NewApplication(
-		database.UserData(),
 		database.ProductData(),
+		database.UserData(),
 	)
 
 
@@ -37,5 +39,4 @@ func main() {
 	router.GET("/instantbuy", app.InstantBuy())
 
 	log.Fatal(router.Run(":" + port))
-
 }
