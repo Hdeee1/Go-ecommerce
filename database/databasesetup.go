@@ -1,10 +1,11 @@
-package controllers
+package database
 
 import (
 	"fmt"
 	"log"
 
-	"github.com/go-sql-driver/mysql"
+	"github.com/Hdeee1/go-ecommerce/models"
+	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
 )
 
@@ -22,4 +23,26 @@ func ConnectDB() {
 	}
 
 	fmt.Println("Connection Opened to Database")
+
+	err = DB.AutoMigrate(
+		&models.User{},
+		&models.Product{},
+		&models.Address{},
+		&models.Order{},
+		&models.OrderItem{},
+	)
+
+	if err != nil {
+		log.Fatal("Failed to migrate database", err)
+	}
+
+	fmt.Println("Database migration complete")
+}
+
+func UserData() *gorm.DB {
+	return DB
+}
+
+func ProductData() *gorm.DB {
+	return DB
 }
