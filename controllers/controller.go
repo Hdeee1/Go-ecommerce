@@ -4,11 +4,11 @@ import (
 	"net/http"
 
 	"github.com/Hdeee1/go-ecommerce/database"
+	"github.com/go-playground/validator/v10"
 	"github.com/Hdeee1/go-ecommerce/models"
 	"github.com/Hdeee1/go-ecommerce/tokens"
-	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 	"golang.org/x/crypto/bcrypt"
+	"github.com/gin-gonic/gin"
 )
 
 var Validate = validator.New()
@@ -22,9 +22,14 @@ func HashPassword(password string) string {
 	return string(bytes)
 }
 
-// func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
-	
-// }
+func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
+	err := bcrypt.CompareHashAndPassword([]byte(givenPassword), []byte(userPassword))
+	if err != nil {
+		return  false, "Login or Password is incorrect"
+	}
+
+	return true, ""
+}
 
 func SignUp() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -82,9 +87,49 @@ func SignUp() gin.HandlerFunc {
 	}
 }
 
-// func Login() gin.HandlerFunc {
-	
-// }
+func Login() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		var user models.User
+		var foundUser models.User
+
+		if err := ctx.BindJSON(&user); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return
+		}
+
+		err := database.DB.Where("email = ?", user.Email).First(&foundUser).Error
+		if err != nil {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "Login or password is incorrect"})
+			return 
+		}
+
+		// verify password
+		isValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		if !isValid {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": msg})
+			return 
+		}
+
+		// generate token 
+		token, refreshToken, err := tokens.TokenGenerator(*foundUser.Email, *foundUser.First_Name, *foundUser.Last_Name, *&foundUser.User_ID)
+		if err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
+			return
+		}
+
+		database.DB.Model(&foundUser).Updates(models.User{
+			Token: &token,
+			Refresh_Token: &refreshToken,
+		})
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message":		 	"Successfully logged in",
+			"token":			token,
+			"refresh_token": 	refreshToken,
+			"user_id": 			foundUser.User_ID,
+		})
+	}
+}
 
 // func ProductViewerAdmin() gin.HandlerFunc {
 	
