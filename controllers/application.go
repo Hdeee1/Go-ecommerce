@@ -239,6 +239,82 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 
 func (app *Application) InstantBuy() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		type InstantBuyRequest struct {
+			ProductID		uint	`json:"product_id" binding:"required"`
+			Quantity		uint	`json:"quantity" binding:"required,min=1"`
+			PaymentMethod	string	`json:"payment_method" binding:"required"`
+		}
 
+		var req InstantBuyRequest
+		if err := ctx.ShouldBindJSON(&req); err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+			return 
+		}
+
+		userID, exist := ctx.Get("user_id")
+		if !exist {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User is not authenticated"})
+			return 
+		}
+
+		var user models.User
+		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return 
+		}
+
+		var product models.Product
+		if err := database.DB.First(&product, req.ProductID).Error; err != nil {
+			if err == gorm.ErrRecordNotFound {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
+				return 
+			}
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product"})
+			return 
+		}
+
+		totalPrice := *product.Price * uint64(req.Quantity)
+
+		var payment models.Payment
+		if req.PaymentMethod == "digital" {
+			payment = models.Payment{Digital: true, COD: false}
+		} else {
+			payment = models.Payment{Digital: false, COD: true}
+		}
+
+		order := models.Order{
+			UserID: user.ID,
+			Price: int(totalPrice),
+			Order_At: time.Now(),
+			Payment_Method: payment,
+		}
+
+		if err := database.DB.Create(&order).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+			return 
+		}
+
+		orderItem := models.OrderItem{
+			OrderID:      order.ID,
+			ProductID:    req.ProductID,
+			Product_Name: product.Product_Name,
+			Price:        *product.Price,
+			Rating:       product.Rating,
+			Image:        product.Image,
+			Quantity:     req.Quantity,
+		}
+
+		if err := database.DB.Create(&orderItem).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
+			return 
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Order placed successfully",
+			"order_id": order.ID,
+			"total_price": totalPrice,
+			"quantity": req.Quantity,
+			"payment": req.PaymentMethod,
+		})
 	}
 }
