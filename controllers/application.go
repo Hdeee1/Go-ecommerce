@@ -170,7 +170,27 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 
 func (app *Application) BuyFromCart() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
+		userID, exist := ctx.Get("user_id")
+		if !exist {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authorized"})
+			return 
+		}
 
+		var user models.User
+		if err := database.DB.Where("user_id = ?", user.ID).First(&user).Error; err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "user_id not found"})
+			return 
+		}
+
+		var cartOrder models.Order
+		err := database.DB.Where("user_id = ? AND price = ?", user.ID, 0).Preload("OrderItems").First(&cartOrder)
+		if err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "cart is empty"})
+			return 
+		}
+		
+
+		
 	}	
 }
 
