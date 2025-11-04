@@ -22,7 +22,7 @@ func NewApplication(productDB, userDB *gorm.DB) *Application {
 	}
 }
 
-func (app *Application) AddToCart() func() {
+func (app *Application) AddToCart() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		productIDStr := ctx.Query("product_id")
 		if productIDStr == "" {
@@ -30,7 +30,7 @@ func (app *Application) AddToCart() func() {
 			return
 		}
 
-		productID, err := strconv.ParseInt(productIDStr, 10, 32)
+		productID, err := strconv.ParseUint(productIDStr, 10, 32)
 		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product_id"})
 			return 
@@ -59,7 +59,7 @@ func (app *Application) AddToCart() func() {
 		}
 
 		var cartOrder models.Order
-		err = database.DB.Where("user_id = ? AND price = ?", userID, 0).
+		err = database.DB.Where("user_id = ? AND price = ?", user.ID, 0).
 			Preload("OrderItems").
 			First(&cartOrder).Error
 
@@ -113,26 +113,69 @@ func (app *Application) AddToCart() func() {
 	}
 }
 
-func (app *Application) RemoveItem() func() {
-	return func() {
-		
-	}
+func (app *Application) RemoveItem() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
+		// 1. Ambil product_id dari query
+		productIDStr := ctx.Query("product_id")
+		if productIDStr == "" {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "product_id is required"})
+			return 
+		}
 
-	
+		productID, err := strconv.ParseUint(productIDStr, 10, 32)
+		if err != nil {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Invalid product_id"})
+			return 
+		}
+
+		userID, exist := ctx.Get("user_id")
+		if !exist {
+			ctx.JSON(http.StatusUnauthorized, gin.H{"error": "User not authenticated"})
+			return 
+		}
+		
+		var user models.User
+		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
+			return
+		}
+
+		var cartOrder models.Order
+		err = database.DB.Where("user_id = ? AND price = ?", user.ID, 0).First(&cartOrder).Error
+		if err != nil {
+			if err == gorm.ErrRecordNotFound {
+					ctx.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
+					return
+			}
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cart"})
+			return 
+		}
+
+		result := database.DB.Where("order_id = ? AND product_id = ?", cartOrder.ID, productID).Delete(&models.OrderItem{})
+		if result.Error != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove item from cart"})
+			return 
+		}
+
+		if result.RowsAffected == 0 {
+			ctx.JSON(http.StatusNotFound, gin.H{"error": "Item not found in cart"})
+			return 
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Item removed from cart successfully",
+		})
+	}
 }
 
-func (app *Application) BuyFromCart() func() {
-	return func() {
-		
-	}
+func (app *Application) BuyFromCart() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
 
-	
+	}	
 }
 
-func (app *Application) InstantBuy() func() {
-	return func() {
-		
-	}
+func (app *Application) InstantBuy() gin.HandlerFunc {
+	return func(ctx *gin.Context) {
 
-	
+	}
 }
