@@ -3,6 +3,7 @@ package controllers
 import (
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/Hdeee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/models"
@@ -144,7 +145,7 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 		err = database.DB.Where("user_id = ? AND price = ?", user.ID, 0).First(&cartOrder).Error
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-					ctx.JSON(http.StatusNotFound, gin.H{"error": "Cart not found"})
+					ctx.JSON(http.StatusNotFound, gin.H{"error": "Cart is empty"})
 					return
 			}
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cart"})
@@ -177,20 +178,62 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 		}
 
 		var user models.User
-		if err := database.DB.Where("user_id = ?", user.ID).First(&user).Error; err != nil {
+		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "user_id not found"})
 			return 
 		}
 
 		var cartOrder models.Order
-		err := database.DB.Where("user_id = ? AND price = ?", user.ID, 0).Preload("OrderItems").First(&cartOrder)
+		err := database.DB.Where("user_id = ? AND price = ?", user.ID, 0).Preload("OrderItems").First(&cartOrder).Error
 		if err != nil {
-			ctx.JSON(http.StatusNotFound, gin.H{"error": "cart is empty"})
+			if err == gorm.ErrRecordNotFound {
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "cart is empty"})
+				return 
+			}
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cart"})
 			return 
 		}
 		
+		if len(cartOrder.OrderItems) == 0 {
+			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Cart is empty"})
+			return 
+		}
 
-		
+		var totalPrice uint64 = 0
+		for _, item := range cartOrder.OrderItems {
+			totalPrice += item.Price * uint64(item.Quantity)
+		}
+
+		paymentMethod := ctx.Query("payment_method")
+		var payment models.Payment
+		if paymentMethod == "digital" {
+			payment = models.Payment{
+				Digital: true,
+				COD: false,
+			}
+		} else {
+			payment = models.Payment{
+				Digital: false,
+				COD: true,
+			}
+		}
+
+		cartOrder.Price = int(totalPrice)
+		cartOrder.Order_At = time.Now()
+		cartOrder.Payment_Method = payment
+
+		if err := database.DB.Save(&cartOrder).Error; err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place "})
+			return
+		}
+
+		ctx.JSON(http.StatusOK, gin.H{
+			"message": "Order placed successfully",
+			"order_id": cartOrder.ID,
+			"total_price": totalPrice,
+			"items_count": len(cartOrder.OrderItems),
+			"payment": paymentMethod,
+		}) 
 	}	
 }
 
