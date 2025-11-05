@@ -4,11 +4,12 @@ import (
 	"net/http"
 
 	"github.com/Hdeee1/go-ecommerce/database"
-	"github.com/go-playground/validator/v10"
 	"github.com/Hdeee1/go-ecommerce/models"
 	"github.com/Hdeee1/go-ecommerce/tokens"
-	"golang.org/x/crypto/bcrypt"
+	"github.com/Hdeee1/go-ecommerce/utils"
 	"github.com/gin-gonic/gin"
+	"github.com/go-playground/validator/v10"
+	"golang.org/x/crypto/bcrypt"
 )
 
 var Validate = validator.New()
@@ -122,7 +123,7 @@ func Login() gin.HandlerFunc {
 			Refresh_Token: &refreshToken,
 		})
 
-		ctx.JSON(http.StatusOK, gin.H{
+		utils.SuccessResponse(ctx, http.StatusOK, "Success", gin.H{
 			"message":		 	"Successfully logged in",
 			"token":			token,
 			"refresh_token": 	refreshToken,
@@ -163,7 +164,7 @@ func SearchProduct() gin.HandlerFunc {
 			return 
 		}
 
-		ctx.JSON(http.StatusOK, products)
+		utils.SuccessResponse(ctx, http.StatusOK, "Success", products)
 	}
 }
 
@@ -183,6 +184,6 @@ func SearchProductByQuery() gin.HandlerFunc {
 			return 
 		}
 
-		ctx.JSON(http.StatusOK, products)
+		utils.SuccessResponse(ctx, http.StatusOK, "Success", products)
 	}
 }

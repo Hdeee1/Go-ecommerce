@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 
+	"github.com/Hdeee1/go-ecommerce/config"
 	"github.com/Hdeee1/go-ecommerce/models"
 	"gorm.io/driver/mysql"
 	"gorm.io/gorm"
@@ -12,10 +13,16 @@ import (
 
 var DB *gorm.DB
 
-func ConnectDB() {
+func ConnectDB(cfg *config.Config) {
 	var err error
 
-	dsn := "root:dbmysql@tcp(127.0.0.1:3306)/db_ecommerce?charset=utf8mb4&parseTime=True&loc=Local"
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s?charset=utf8mb4&parseTime=True&loc=Local",
+		cfg.DBUser,
+		cfg.DBPassword,
+		cfg.DBHost,
+		cfg.DBPort,
+		cfg.DBName,
+	)
 
 	DB, err = gorm.Open(mysql.Open(dsn), &gorm.Config{})
 	if err != nil {
