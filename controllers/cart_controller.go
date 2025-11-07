@@ -5,7 +5,6 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/Hdeee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/models"
 	"github.com/Hdeee1/go-ecommerce/utils"
 	"github.com/gin-gonic/gin"
@@ -32,8 +31,8 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 			return 
 		}
 
-		var product models.Product
-		if err := database.DB.First(&product, productID).Error; err != nil {
+		product, err := app.ProductRepo.FindByID(uint(productID))
+		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 				return 
@@ -42,30 +41,25 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 			return 
 		}
 
-		var user models.User
-		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		user, err := app.UserRepo.FindByID(userID.(string))
+		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return 
 		}
 
-		var cartOrder models.Order
-		err = database.DB.Where("user_id = ? AND price = ?", user.ID, 0).
-			Preload("OrderItems").
-			First(&cartOrder).Error
-
+		cartOrder, err := app.OrderRepo.FindCartByUserID(user.ID)
 		if err == gorm.ErrRecordNotFound {
 			cartOrder = models.Order{
 				UserID: user.ID,
 				Price: 0,
 			}
-			if err := database.DB.Create(&cartOrder).Error; err != nil {
+			if err := app.OrderRepo.CreateCart(&cartOrder); err != nil {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create cart"})
 				return 
 			}
 		}
 
-		var existingItem models.OrderItem
-		err = database.DB.Where("order_id = ?  AND product_id = ?", cartOrder.ID, productID).First(&existingItem).Error
+		existingItem, err := app.OrderRepo.FindOrderItem(cartOrder.ID, uint(productID))
 		if err == gorm.ErrRecordNotFound {
 			quantity := uint(1)
 			if qtyStr := ctx.Query("quantity"); qtyStr != "" {
@@ -75,22 +69,22 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 			}
 
 			orderItem := models.OrderItem{
-					OrderID: 		cartOrder.ID,
-					ProductID: 		uint(productID),
-					Product_Name: 	product.Product_Name,
-					Price: 			*product.Price,
-					Rating: 		product.Rating,
-					Image: 			product.Image,
-					Quantity: 		quantity,
+				OrderID:      cartOrder.ID,
+				ProductID:    uint(productID),
+				Product_Name: product.Product_Name,
+				Price:        *product.Price,
+				Rating:       product.Rating,
+				Image:        product.Image,
+				Quantity:     quantity,
 			}
 
-			if err := database.DB.Create(&orderItem).Error; err != nil {
+			if err := app.OrderRepo.CreateOrderItem(&orderItem); err != nil {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add item to cart"})
 				return 
 			}
 		} else {
 			existingItem.Quantity += 1
-			if err := database.DB.Save(&existingItem).Error; err != nil {
+			if err := app.OrderRepo.UpdateOrderItem(&existingItem); err != nil {
 				ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to update the cart item"})
 				return
 			}
@@ -105,7 +99,6 @@ func (app *Application) AddToCart() gin.HandlerFunc {
 
 func (app *Application) RemoveItem() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		// 1. Ambil product_id dari query
 		productIDStr := ctx.Query("product_id")
 		if productIDStr == "" {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "product_id is required"})
@@ -124,30 +117,29 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 			return 
 		}
 		
-		var user models.User
-		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		user, err := app.UserRepo.FindByID(userID.(string))
+		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return
 		}
 
-		var cartOrder models.Order
-		err = database.DB.Where("user_id = ? AND price = ?", user.ID, 0).First(&cartOrder).Error
+		cartOrder, err := app.OrderRepo.FindCartByUserID(user.ID)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
-					ctx.JSON(http.StatusNotFound, gin.H{"error": "Cart is empty"})
-					return
+				ctx.JSON(http.StatusNotFound, gin.H{"error": "Cart is empty"})
+				return
 			}
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch cart"})
 			return 
 		}
 
-		result := database.DB.Where("order_id = ? AND product_id = ?", cartOrder.ID, productID).Delete(&models.OrderItem{})
-		if result.Error != nil {
+		rowsAffected, err := app.OrderRepo.DeleteOrderItem(cartOrder.ID, uint(productID))
+		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to remove item from cart"})
 			return 
 		}
 
-		if result.RowsAffected == 0 {
+		if rowsAffected == 0 {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "Item not found in cart"})
 			return 
 		}
@@ -158,10 +150,6 @@ func (app *Application) RemoveItem() gin.HandlerFunc {
 	}
 }
 
-// func GetItemFromCart() gin.HandlerFunc {
-	
-// }
-
 func (app *Application) BuyFromCart() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
 		userID, exist := ctx.Get("user_id")
@@ -170,14 +158,13 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 			return 
 		}
 
-		var user models.User
-		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		user, err := app.UserRepo.FindByID(userID.(string))
+		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "user_id not found"})
 			return 
 		}
 
-		var cartOrder models.Order
-		err := database.DB.Where("user_id = ? AND price = ?", user.ID, 0).Preload("OrderItems").First(&cartOrder).Error
+		cartOrder, err := app.OrderRepo.FindCartByUserID(user.ID)
 		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "cart is empty"})
@@ -215,8 +202,8 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 		cartOrder.Order_At = time.Now()
 		cartOrder.Payment_Method = payment
 
-		if err := database.DB.Save(&cartOrder).Error; err != nil {
-			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place "})
+		if err := app.OrderRepo.UpdateOrder(&cartOrder); err != nil {
+			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "failed to place order"})
 			return
 		}
 
@@ -250,14 +237,14 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 			return 
 		}
 
-		var user models.User
-		if err := database.DB.Where("user_id = ?", userID).First(&user).Error; err != nil {
+		user, err := app.UserRepo.FindByID(userID.(string))
+		if err != nil {
 			ctx.JSON(http.StatusNotFound, gin.H{"error": "User not found"})
 			return 
 		}
 
-		var product models.Product
-		if err := database.DB.First(&product, req.ProductID).Error; err != nil {
+		product, err := app.ProductRepo.FindByID(req.ProductID)
+		if err != nil {
 			if err == gorm.ErrRecordNotFound {
 				ctx.JSON(http.StatusNotFound, gin.H{"error": "Product not found"})
 				return 
@@ -282,7 +269,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 			Payment_Method: payment,
 		}
 
-		if err := database.DB.Create(&order).Error; err != nil {
+		if err := app.OrderRepo.CreateCart(&order); err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 			return 
 		}
@@ -297,7 +284,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 			Quantity:     req.Quantity,
 		}
 
-		if err := database.DB.Create(&orderItem).Error; err != nil {
+		if err := app.OrderRepo.CreateOrderItem(&orderItem); err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create order"})
 			return 
 		}

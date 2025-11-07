@@ -1,9 +1,11 @@
 package tokens
 
 import (
+	"os"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"github.com/joho/godotenv"
 )
 
 type SignedDetail struct {
@@ -14,10 +16,18 @@ type SignedDetail struct {
 	jwt.RegisteredClaims
 }
 
-var SECRET_KEY = []byte("bukankan_ini_my_secret_key_ku")
+var SECRET_KEY []byte
+
+func init() {
+	godotenv.Load()
+	secretKey := os.Getenv("JWT_SECRET")
+	if secretKey == "" {
+		secretKey = "bukankan_ini_my_secret_key_ku"
+	}
+	SECRET_KEY = []byte(secretKey)
+}
 
 func TokenGenerator(email, firstName, lastName, userID string) (string, string, error) {
-	// Access Token (24 hours)
 	claims := &SignedDetail{
 		Email: email,
 		First_Name: firstName,
@@ -64,7 +74,7 @@ func ValidateToken(SignedToken string) (*SignedDetail, error) {
 
 	claims, ok := token.Claims.(*SignedDetail)
 	if !ok {
-		return nil,err
+		return nil, err
 	}
 
 	return claims, nil

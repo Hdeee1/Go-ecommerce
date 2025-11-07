@@ -3,15 +3,12 @@ package controllers
 import (
 	"net/http"
 
-	"github.com/Hdeee1/go-ecommerce/database"
 	"github.com/Hdeee1/go-ecommerce/models"
 	"github.com/Hdeee1/go-ecommerce/utils"
 	"github.com/gin-gonic/gin"
 )
 
-
-
-func ProductViewerAdmin() gin.HandlerFunc {
+func ProductViewerAdmin(app *Application) gin.HandlerFunc {
 	return  func(ctx *gin.Context) {
 		var product models.Product
 
@@ -20,8 +17,8 @@ func ProductViewerAdmin() gin.HandlerFunc {
 			return 
 		}
 
-		result := database.DB.Create(&product)
-		if result.Error != nil {
+		err := app.ProductRepo.Create(&product)
+		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to add product"})
 			return
 		}
@@ -33,12 +30,10 @@ func ProductViewerAdmin() gin.HandlerFunc {
 	}
 }
 
-func SearchProduct() gin.HandlerFunc {
+func SearchProduct(app *Application) gin.HandlerFunc {
 	return  func(ctx *gin.Context) {
-		var products []models.Product
-
-		result := database.DB.Find(&products)
-		if result.Error != nil {
+		products, err := app.ProductRepo.FindAll()
+		if err != nil {
 			ctx.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to fetch product"})
 			return 
 		}
@@ -47,18 +42,16 @@ func SearchProduct() gin.HandlerFunc {
 	}
 }
 
-func SearchProductByQuery() gin.HandlerFunc {
+func SearchProductByQuery(app *Application) gin.HandlerFunc {
 	return func(ctx *gin.Context) {
-		var products []models.Product
-
 		query := ctx.Query("name")
 		if query == "" {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Search query is required"})
 			return 
 		}
 
-		result := database.DB.Where("product_name LIKE ?", "%"+query+"%").Find(&products)
-		if result.Error != nil {
+		products, err := app.ProductRepo.FindByName(query)
+		if err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": "Failed to search product"})
 			return 
 		}

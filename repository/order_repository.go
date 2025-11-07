@@ -15,12 +15,12 @@ func NewOrderRepository(db *gorm.DB) *OrderRepository {
 
 func (r *OrderRepository) FindCartByUserID(userID uint) (models.Order, error) {
 	var cartOrder models.Order
-	err := r.db.Where("user_id = ? AND price = ?", userID).Preload("OrderItems").First(&cartOrder).Error
+	err := r.db.Where("user_id = ? AND price = ?", userID, 0).Preload("OrderItems").First(&cartOrder).Error
 
 	return cartOrder, err
 }
 
-func (r *OrderRepository) CrateCart(cart *models.Order) error {
+func (r *OrderRepository) CreateCart(cart *models.Order) error {
 	return r.db.Create(cart).Error
 }
 
@@ -37,6 +37,10 @@ func (r *OrderRepository) CreateOrderItem(item *models.OrderItem) error {
 
 func (r *OrderRepository) UpdateOrderItem(item *models.OrderItem) error {
 	return r.db.Save(item).Error
+}
+
+func (r *OrderRepository) UpdateOrder(order *models.Order) error {
+	return r.db.Save(order).Error
 }
 
 func (r *OrderRepository) DeleteOrderItem(orderID uint, productID uint) (int64, error) {
