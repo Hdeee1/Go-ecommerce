@@ -2,41 +2,42 @@ package main
 
 import (
 	"log"
-	"os"
 
+	"github.com/Hdeee1/go-ecommerce/config"
 	"github.com/Hdeee1/go-ecommerce/controllers"
-	"github.com/Hdeee1/go-ecommerce/middleware"
 	"github.com/Hdeee1/go-ecommerce/database"
+	"github.com/Hdeee1/go-ecommerce/middleware"
+	"github.com/Hdeee1/go-ecommerce/repository"
 	"github.com/Hdeee1/go-ecommerce/routes"
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "8080"
-	}
+	cfg := config.LoadConfig()
+	port := cfg.Port
 
-	// connect to database
-	database.ConnectDB()
+	database.ConnectDB(cfg)
 
-	// initialize application with db connections
+	userRepo := repository.NewUserRepository(database.DB)
+	productRepo := repository.NewProductRepository(database.DB)
+	orderRepo := repository.NewOrderRepository(database.DB)
+
 	app := controllers.NewApplication(
-		database.ProductData(),
-		database.UserData(),
+		userRepo,
+		productRepo,
+		orderRepo,
 	)
-
 
 	router := gin.New()
 	router.Use(gin.Logger())
 
-	routes.UserRoutes(router)
+	routes.UserRoutes(router, app)
 	router.Use(middleware.Authentication())
 
 	router.GET("/addtocart", app.AddToCart())
 	router.GET("/removeitem", app.RemoveItem())
 	router.GET("/cartcheckout", app.BuyFromCart())
-	router.GET("/instantbuy", app.InstantBuy())
+	router.POST("/instantbuy", app.InstantBuy())
 
 	log.Fatal(router.Run(":" + port))
 }
