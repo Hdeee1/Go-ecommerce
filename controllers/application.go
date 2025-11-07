@@ -1,15 +1,21 @@
 package controllers
 
-import "gorm.io/gorm"
+import	"github.com/Hdeee1/go-ecommerce/repository"
 
 type Application struct {
-	ProductDB 	*gorm.DB
-	UserDB		*gorm.DB
+	UserRepo	*repository.UserRepository
+	ProductRepo	*repository.ProductRepository
+	OrderRepo	*repository.OrderRepository
 }
 
-func NewApplication(productDB, userDB *gorm.DB) *Application {
+func NewApplication(
+	userRepo *repository.UserRepository,
+	productRepo *repository.ProductRepository,
+	orderRepo *repository.OrderRepository,
+) *Application {
 	return &Application{
-		ProductDB: productDB,
-		UserDB: userDB,
+		UserRepo: userRepo,
+		ProductRepo: productRepo,
+		OrderRepo: orderRepo,
 	}
 }

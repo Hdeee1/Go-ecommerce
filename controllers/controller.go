@@ -9,28 +9,9 @@ import (
 	"github.com/Hdeee1/go-ecommerce/utils"
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
-	"golang.org/x/crypto/bcrypt"
 )
 
 var Validate = validator.New()
-
-func HashPassword(password string) string {
-	bytes, err := bcrypt.GenerateFromPassword([]byte(password), 14)
-	if err != nil {
-		panic(err)
-	}
-
-	return string(bytes)
-}
-
-func VerifyPassword(userPassword string, givenPassword string) (bool, string) {
-	err := bcrypt.CompareHashAndPassword([]byte(givenPassword), []byte(userPassword))
-	if err != nil {
-		return  false, "Login or Password is incorrect"
-	}
-
-	return true, ""
-}
 
 func SignUp() gin.HandlerFunc {
 	return func(ctx *gin.Context) {
@@ -62,7 +43,7 @@ func SignUp() gin.HandlerFunc {
 		}
 
 		// Hash password
-		password := HashPassword(*user.Password)
+		password := utils.HashPassword(*user.Password)
 		user.Password = &password
 
 		token, refreshToken, err := tokens.TokenGenerator(*user.Email, *user.First_Name, *user.Last_Name, *&user.User_ID)
@@ -105,7 +86,7 @@ func Login() gin.HandlerFunc {
 		}
 
 		// verify password
-		isValid, msg := VerifyPassword(*user.Password, *foundUser.Password)
+		isValid, msg := utils.VerifyPassword(*user.Password, *foundUser.Password)
 		if !isValid {
 			ctx.JSON(http.StatusUnauthorized, gin.H{"error": msg})
 			return 
