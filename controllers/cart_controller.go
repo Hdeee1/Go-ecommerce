@@ -198,7 +198,7 @@ func (app *Application) BuyFromCart() gin.HandlerFunc {
 			}
 		}
 
-		cartOrder.Price = int(totalPrice)
+		cartOrder.Price = uint(totalPrice)
 		cartOrder.Order_At = time.Now()
 		cartOrder.Payment_Method = payment
 
@@ -264,7 +264,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 
 		order := models.Order{
 			UserID: user.ID,
-			Price: int(totalPrice),
+			Price: uint(totalPrice),
 			Order_At: time.Now(),
 			Payment_Method: payment,
 		}

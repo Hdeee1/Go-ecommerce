@@ -45,11 +45,3 @@ func ConnectDB(cfg *config.Config) {
 
 	fmt.Println("Database migration complete")
 }
-
-func UserData() *gorm.DB {
-	return DB
-}
-
-func ProductData() *gorm.DB {
-	return DB
-}
