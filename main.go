@@ -36,13 +36,6 @@ func main() {
 	routes.UserRoutes(router, app)
 	router.Use(middleware.Authentication())
 
-	authRoutes := router.Group("/")
-	{
-		authRoutes.POST("/admin/addproduct", controllers.ProductViewerAdmin(app))
-		authRoutes.GET("/addtocart", app.AddToCart())
-		authRoutes.GET("/removeitem", app.RemoveItem())
-		authRoutes.GET("/cartcheckout", app.BuyFromCart())
-		authRoutes.POST("/instantbuy", app.InstantBuy())
-	}
+	routes.ProductRoutes(router, app)
 	log.Fatal(router.Run(":" + port))
 }
