@@ -226,7 +226,7 @@ func (app *Application) InstantBuy() gin.HandlerFunc {
 		}
 
 		var req InstantBuyRequest
-		if err := ctx.ShouldBindJSON(&req); err != nil {
+		if err := ctx.BindJSON(&req); err != nil {
 			ctx.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 			return 
 		}

@@ -21,11 +21,13 @@ func main() {
 	userRepo := repository.NewUserRepository(database.DB)
 	productRepo := repository.NewProductRepository(database.DB)
 	orderRepo := repository.NewOrderRepository(database.DB)
+	addressRepo := repository.NewAddressRepository(database.DB)
 
 	app := controllers.NewApplication(
 		userRepo,
 		productRepo,
 		orderRepo,
+		addressRepo,
 	)
 
 	router := gin.New()

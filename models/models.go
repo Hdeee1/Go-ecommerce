@@ -43,6 +43,7 @@ type Product struct {
 type Address struct {
 	gorm.Model
 	UserID		uint		`json:"user_id"`
+	Type		*string		`json:"type" validate:"required"`
 	House		*string		`json:"house" validate:"required"`
 	Street		*string		`json:"street" validate:"required"`
 	City		*string		`json:"city" validate:"required"`
